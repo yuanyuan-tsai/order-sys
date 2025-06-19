@@ -23,8 +23,15 @@ func GetMenu(c *gin.Context) {
 }
 
 func AddMenuItem(c *gin.Context) {
+	userID := c.GetString("userID")
+	user, err := service.GetUserByID(userID)
+	if err != nil || user.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
+		return
+	}
+
 	var req MenuItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

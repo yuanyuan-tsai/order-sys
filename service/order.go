@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateOrder(userID string, items []models.OrderItem) error {
+func CreateOrder(userID string, items []models.OrderItem) (*models.Order, error) {
 	var total float64
 	for _, item := range items {
 		total += item.Price * float64(item.Quantity)
@@ -26,15 +26,15 @@ func CreateOrder(userID string, items []models.OrderItem) error {
 
 	err := repository.SaveOrder(order)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	// go processOrder(order.ID)
+	go processOrder(order.ID)
 
-	return nil
+	return &order, nil
 }
 
-func GetOrder(orderID string) (*models.Order, error) {
+func GetOrderByID(orderID string) (*models.Order, error) {
 	order, err := repository.GetOrderByID(orderID)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func GetUserAllOrders(userID string) ([]models.Order, error) {
 
 	orders := []models.Order{}
 	for _, orderID := range orderIDs {
-		order, err := GetOrder(orderID)
+		order, err := GetOrderByID(orderID)
 		if err != nil {
 			return nil, err
 		}
@@ -60,6 +60,10 @@ func GetUserAllOrders(userID string) ([]models.Order, error) {
 	return orders, nil
 }
 
-func GetPreparingOrders() ([]models.Order, error) {
-	return nil, nil
+func GetPendingOrders() ([]models.Order, error) {
+	return repository.GetPendingOrders()
+}
+
+func UpdateDishStatus(orderID string, menuItemID string, status models.DishStatus) error {
+	return repository.UpdateDishStatus(orderID, menuItemID, status)
 }

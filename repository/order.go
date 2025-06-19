@@ -23,8 +23,22 @@ func SaveOrder(order models.Order) error {
 		return err
 	}
 
-	if order.Status == models.OrderStatusPending {
-		err = RedisClient.LPush(Ctx, "preparing_orders", order.ID).Err()
+	existingOrder, err := GetOrderByID(order.ID)
+	isNewOrder := err != nil
+	if isNewOrder {
+		err = RedisClient.LPush(Ctx, fmt.Sprintf("user:%s:orders", order.UserId), order.ID).Err()
+		if err != nil {
+			return err
+		}
+
+		if order.Status == models.OrderStatusPending {
+			err = RedisClient.LPush(Ctx, "pending_orders", order.ID).Err()
+			if err != nil {
+				return err
+			}
+		}
+	} else if existingOrder.Status != models.OrderStatusCompleted && order.Status == models.OrderStatusCompleted {
+		err = RedisClient.LRem(Ctx, "pending_orders", 0, order.ID).Err()
 		if err != nil {
 			return err
 		}
@@ -59,6 +73,26 @@ func GetOrderByID(ID string) (*models.Order, error) {
 	}
 
 	return &order, nil
+}
+
+func GetPendingOrders() ([]models.Order, error) {
+	orderIDs, err := RedisClient.LRange(Ctx, "pending_orders", 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	orders := make([]models.Order, 0, len(orderIDs))
+	for _, id := range orderIDs {
+		order, err := GetOrderByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if order.Status != models.OrderStatusCompleted {
+			orders = append(orders, *order)
+		}
+	}
+
+	return orders, nil
 }
 
 func UpdateOrderStatus(orderID string, status models.OrderStatus) error {

@@ -4,12 +4,15 @@ import (
 	"log"
 	"order-sys/repository"
 	"order-sys/routes"
+	"order-sys/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	repository.InitRedis()
+
+	service.StartKitchen(5)
 
 	r := gin.Default()
 	routes.SetRoutes(r)
