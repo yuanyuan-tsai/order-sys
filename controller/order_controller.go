@@ -111,7 +111,7 @@ func GetPendingOrders(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if user.Role != "admin" {
+	if user.Role != "chef" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
 		return
 	}

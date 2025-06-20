@@ -8,6 +8,9 @@ import (
 )
 
 func SaveOrder(order models.Order) error {
+	existingOrder, err := GetOrderByID(order.ID)
+	isNewOrder := err != nil
+
 	orderJSON, err := json.Marshal(order)
 	if err != nil {
 		return err
@@ -18,13 +21,6 @@ func SaveOrder(order models.Order) error {
 		return err
 	}
 
-	err = RedisClient.LPush(Ctx, fmt.Sprintf("user:%s:orders", order.UserId), order.ID).Err()
-	if err != nil {
-		return err
-	}
-
-	existingOrder, err := GetOrderByID(order.ID)
-	isNewOrder := err != nil
 	if isNewOrder {
 		err = RedisClient.LPush(Ctx, fmt.Sprintf("user:%s:orders", order.UserId), order.ID).Err()
 		if err != nil {
@@ -37,7 +33,7 @@ func SaveOrder(order models.Order) error {
 				return err
 			}
 		}
-	} else if existingOrder.Status != models.OrderStatusCompleted && order.Status == models.OrderStatusCompleted {
+	} else if existingOrder != nil && existingOrder.Status != models.OrderStatusCompleted && order.Status == models.OrderStatusCompleted {
 		err = RedisClient.LRem(Ctx, "pending_orders", 0, order.ID).Err()
 		if err != nil {
 			return err
@@ -114,13 +110,13 @@ func UpdateDishStatus(orderID string, dishID string, status models.DishStatus) e
 	}
 
 	var allReady = true
-	for _, dish := range order.Items {
-		if dish.MenuItemID == dishID {
-			dish.Status = status
-			order.UpdatedAt = time.Now()
+	for i := range order.Items {
+		if order.Items[i].MenuItemID == dishID {
+			order.Items[i].Status = status
+			order.Items[i].UpdatedAt = time.Now()
 		}
 
-		if dish.Status != models.DishStatusReady {
+		if order.Items[i].Status != models.DishStatusReady {
 			allReady = false
 		}
 	}
